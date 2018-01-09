@@ -1,0 +1,9 @@
+package com.fngame.farm.configer;
+public class Cars {
+  public String CarID;
+  public String Prefab;
+  public String Display;
+  public String Info;
+  public String Grade;
+  public String DecScore;
+}

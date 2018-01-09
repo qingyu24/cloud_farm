@@ -1,0 +1,225 @@
+package com.fngame.farm.service;
+
+import com.fngame.farm.manager.PlayerManager;
+import com.fngame.farm.model.CarInfo;
+import com.fngame.farm.model.LikeInfo;
+import com.fngame.farm.model.Message;
+import com.fngame.farm.userdate.PlayerInfo;
+import com.fngame.farm.userdate.ResultInfo;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+
+/**
+ * @Author:Tian
+ * @Description： 停车场的业务逻辑
+ * @Date:Created in 16:47 2018/1/3
+ * @Modified By:
+ */
+@Service
+public class CarInfoService {
+
+    @Autowired
+    PlayerManager PlayerManager;
+
+    private static final Integer MAX_COUNT_CAR = 30;//最大车辆拥有数
+
+    private static final Integer MAX_COUNT_PARKING_CAR = 6;//放出车辆的最大数
+
+    private static final Integer PARKING = 1;//表示放出状态
+
+    private static final Integer UNPARKING = 0;//表示未放出
+
+    /**
+     *@Author:Tian
+     *@Description:  获取车库信息列表
+     *@Date: 10:12 2018/1/4
+     */
+    public List<CarInfo> getCarInfoByUserId(ResultInfo resultInfo,Long userid){
+        PlayerInfo playerInfo = PlayerManager.getPlayer(userid);
+        List<CarInfo> carInfoList = playerInfo.getCarInfoByUserId(userid);
+        if(carInfoList==null||carInfoList.size()==0){
+            resultInfo.setResp_code("111001");
+        }
+        HashMap<String, Object> data = resultInfo.getData();
+        data.put("cars",carInfoList);
+        return carInfoList;
+    }
+
+    /**
+     *@Author:Tian
+     *@Description: 获取一个车辆的详细信息
+     *@Date: 18:58 2018/1/4
+     */
+    @Transactional
+    public CarInfo getOneCarInfo(ResultInfo resultInfo,Long userid,Long carinfoid){
+        PlayerInfo playerInfo = PlayerManager.getPlayer(userid);
+        CarInfo carInfo = playerInfo.getOneCarInfo(carinfoid);
+        Boolean result=false;
+        if(carInfo==null){
+            resultInfo.setResp_code("111002");
+            return null;
+        }
+        List<Message> messageList = playerInfo.getMessage(carinfoid);
+        if(messageList==null||messageList.size()==0){
+            resultInfo.setResp_code("111003");
+        }
+        Integer islikeinfo;
+        if(playerInfo.userIsLikeInfo(carinfoid,userid)){
+            islikeinfo=1;
+        }else{
+            islikeinfo=0;
+        }
+        Integer likecount = playerInfo.getLikeInfoCount(carinfoid);
+        HashMap<String, Object> data = resultInfo.getData();
+        data.put("carInfo",carInfo);
+        data.put("messageList",messageList);
+        data.put("islikeinfo",islikeinfo);
+        data.put("likecount",likecount);
+        return carInfo;
+    }
+
+    /**
+     *@Author:Tian
+     *@Description: 点赞
+     *@Date: 10:16 2018/1/5
+     */
+    public boolean addLikeInfo(ResultInfo resultInfo,Long userid,Long carinfoid){
+        PlayerInfo playerInfo = PlayerManager.getPlayer(userid);
+        boolean result = false;
+        if(playerInfo.userIsLikeInfo(carinfoid,userid)){
+            resultInfo.setResp_code("111004");
+            return result;
+        }
+        LikeInfo likeInfo = new LikeInfo();
+        likeInfo.setCarinfoid(carinfoid);
+        likeInfo.setUserid(userid);
+        result=playerInfo.addLikeInfo(likeInfo);
+        if(!result){
+            resultInfo.setResp_code("111005");
+        }
+        if(result){
+            this.getOneCarInfo(resultInfo,userid,carinfoid);
+        }
+        return result;
+    }
+    /**
+     *@Author:Tian
+     *@Description: 添加车辆
+     *@Date: 14:00 2018/1/5
+     */
+    public boolean addNewCarInfo(ResultInfo resultInfo,Long userid,Integer carid){
+        PlayerInfo playerInfo = PlayerManager.getPlayer(userid);
+        boolean result = false;
+        if(playerInfo.isUserhaveTheCar(userid,carid)){
+            resultInfo.setResp_code("111006");
+            return result;
+        }
+        List<CarInfo> carInfoList = playerInfo.getCarInfoByUserId(userid);
+        if(carInfoList!=null&&carInfoList.size()>=MAX_COUNT_CAR){
+            resultInfo.setResp_code("111008");
+            return result;
+        }
+        CarInfo carInfo = new CarInfo();
+        carInfo.setUserid(userid);
+        carInfo.setCarid(carid);
+        result = playerInfo.addNewCarInfo(carInfo);
+        if(!result){
+            resultInfo.setResp_code("111007");
+        }
+        return result;
+    }
+    /**
+     *@Author:Tian
+     *@Description: 放出车辆
+     *@Date: 14:34 2018/1/5
+     */
+    public boolean parkingCar(ResultInfo resultInfo,Long userid,Long carinfoid,Integer parklocation){
+        PlayerInfo playerInfo = PlayerManager.getPlayer(userid);
+        boolean result = false;
+        CarInfo carInfo = playerInfo.getOneCarInfo(carinfoid);
+        if(carInfo==null){
+            resultInfo.setResp_code("111009");
+            return result;
+        }
+        //parklocation为0表示收回车辆
+        List<CarInfo> carInfoList = playerInfo.getParkingCarInfoByUser(userid);
+        if(carInfoList!=null&&parklocation!=0&&carInfoList.size()>=MAX_COUNT_PARKING_CAR){//判断放出车辆总数
+            resultInfo.setResp_code("111010");
+        }
+        //判断停车位上是否已有车辆
+        if(parklocation!=0&&playerInfo.isLocationHaveCar(userid,parklocation)){
+            resultInfo.setResp_code("111017");
+            return result;
+        }
+        carInfo.setParking(parklocation);
+        result=playerInfo.updateCarinfo(carInfo);
+        if(!result){
+            resultInfo.setResp_code("111011");
+        }
+        if(result){
+            this.getOneCarInfo(resultInfo,userid,carinfoid);
+        }
+        return result;
+    }
+    /**
+     *@Author:Tian
+     *@Description: 留言
+     *@Date: 17:18 2018/1/5
+     */
+    public boolean leaveMessage(ResultInfo resultInfo,Long carinfoid,Long fromUserid,Long toUserid, String content){
+        PlayerInfo playerInfo = PlayerManager.getPlayer(fromUserid);
+        boolean result = false;
+        CarInfo carInfo=playerInfo.getOneCarInfo(carinfoid);
+        if(playerInfo.getOneCarInfo(carinfoid)==null){
+            resultInfo.setResp_code("111012");
+            return result;
+        }
+        Message message = new Message();
+        message.setCarinfoid(carinfoid);
+        message.setFromUserid(fromUserid);
+        message.setContent(content);
+        message.setDate(new Date());
+        result=playerInfo.addMessage(message);
+        if(!result){
+            resultInfo.setResp_code("111012");
+        }
+
+        if(result){
+            this.getOneCarInfo(resultInfo,carInfo.getUserid(),carinfoid);
+        }
+        return result;
+    }
+
+    /**
+     *@Author:Tian
+     *@Description: 删除留言
+     *@Date: 10:35 2018/1/8
+     */
+    public boolean deleteMessage(ResultInfo resultInfo,Long userid,Long msgid) {
+        PlayerInfo playerInfo = PlayerManager.getPlayer(userid);
+        boolean result = false;
+        //判断是否车主删除评论
+        Message message = playerInfo.getMessageById(msgid);
+        if(message==null){
+            resultInfo.setResp_code("111014");
+            return result;
+        }
+        CarInfo carInfo = playerInfo.getOneCarInfo(message.getCarinfoid());
+        if(carInfo==null){
+            resultInfo.setResp_code("111015");
+            return result;
+        }
+        if(!carInfo.getUserid().equals(userid)){
+            resultInfo.setResp_code("111016");
+            return result;
+        }
+        result=playerInfo.deleteMessage(msgid);
+        return result;
+    }
+
+}

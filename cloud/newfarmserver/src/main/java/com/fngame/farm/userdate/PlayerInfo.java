@@ -1,0 +1,981 @@
+package com.fngame.farm.userdate;
+
+import com.fngame.farm.configer.Craft;
+import com.fngame.farm.configer.Item;
+import com.fngame.farm.etypes.EFriendType;
+import com.fngame.farm.etypes.EPropType;
+import com.fngame.farm.manager.BaseAutowired;
+import com.fngame.farm.manager.ConfigManager;
+import com.fngame.farm.mapper.*;
+import com.fngame.farm.model.*;
+import com.fngame.farm.util.BeanTools;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+/**
+ * Created by qingyu on 2017/12/20.
+ */
+@Component
+@Scope("prototype")
+public class PlayerInfo extends BaseAutowired implements Serializable {
+    private long id;
+
+
+    /**
+     * Sets id.
+     *
+     * @param id the id
+     */
+    public void setId(long id) {
+        this.id = id;
+    }
+
+    /**
+     * Gets friend list.
+     *
+     * @return the friend list
+     */
+//获取好友的列表;
+    public List<FriendInfo> getFriendList() {
+
+        FriendInfoMapper friendInfoMapper = (FriendInfoMapper) BeanTools.getBean(FriendInfoMapper.class);
+        List<FriendInfo> list = friendInfoMapper.selectByUserid(id);
+        return list;
+    }
+
+    /**
+     * Gets tele booths.
+     *
+     * @return the tele booths
+     */
+//获取电话亭的数据列表;
+    public List<TeleBooth> getTeleBooths() {
+        TeleBoothMapper mapper = (TeleBoothMapper) BeanTools.getBean(TeleBoothMapper.class);
+        TeleBoothExample tel = new TeleBoothExample();
+        tel.clear();
+        TeleBoothExample.Criteria criteria5 = tel.createCriteria();
+        criteria5.andUseridEqualTo(this.getId());
+        List<TeleBooth> teleBooths = mapper.selectByExample(tel);
+        return teleBooths;
+    }
+
+    /**
+     * Gets id.
+     *
+     * @return the id
+     */
+//获取用户的ID
+    public long getId() {
+        return id;
+    }
+
+    /**
+     * Gets craft produces.
+     *
+     * @return the craft produces
+     */
+//获得合成列表组;
+    public List<CraftProduce> getCraftProduces() {
+
+        CraftProduceMapper mapper = (CraftProduceMapper) BeanTools.getBean(CraftProduceMapper.class);
+        CraftProduceExample exp = new CraftProduceExample();
+        exp.clear();
+        CraftProduceExample.Criteria criteria3 = exp.createCriteria();
+        criteria3.andUseridEqualTo(getId());
+        List<CraftProduce> craftProduces = mapper.selectByExample(exp);
+        return craftProduces;
+    }
+
+    /**
+     * Gets craft list by id.
+     *
+     * @param id the id
+     * @return the craft list by id
+     */
+    public CraftProduce getCraftListById(Long id) {
+
+        CraftProduceMapper mapper = (CraftProduceMapper) BeanTools.getBean(CraftProduceMapper.class);
+        CraftProduceExample exp = new CraftProduceExample();
+        exp.clear();
+        CraftProduceExample.Criteria criteria3 = exp.createCriteria();
+        criteria3.andUseridEqualTo(getId()).andIdEqualTo(id);
+        List<CraftProduce> craftProduces = mapper.selectByExample(exp);
+        return craftProduces.isEmpty() ? null : craftProduces.get(0);
+    }
+
+    /**
+     * Gets craft list by building id.
+     *
+     * @param buildingId the building id
+     * @return the craft list by building id
+     */
+//根据建筑物的id获取正在生产的物品的列表;
+    public List<CraftProduce> getCraftListByBuildingId(Long buildingId) {
+
+        CraftProduceMapper mapper = (CraftProduceMapper) BeanTools.getBean(CraftProduceMapper.class);
+        CraftProduceExample exp = new CraftProduceExample();
+        exp.clear();
+        CraftProduceExample.Criteria criteria3 = exp.createCriteria();
+        criteria3.andUseridEqualTo(getId()).andBuildingidEqualTo(buildingId);
+        List<CraftProduce> craftProduces = mapper.selectByExample(exp);
+        return craftProduces;
+    }
+
+
+    /**
+     * Insert craft craft produce.
+     *
+     * @param type       the type
+     * @param buildingId the building id
+     * @param itemId     the item id
+     * @return the craft produce
+     */
+/*插入一个待生产的物品;
+     * @param type 物品的类型 参考EItemType
+     * @param buildingId //目标建筑的id；
+     * @param itemId //物品的基础表的ID；
+     */
+    public CraftProduce insertCraft(int type, Long buildingId, int itemId) {
+
+        Craft baseCraft = ConfigManager.getInstance().getCraftById(itemId);
+        if (null == baseCraft) {
+            return null;
+        }
+        List<CraftProduce> list = getCraftListByBuildingId(buildingId);
+        CraftProduceMapper mapper = (CraftProduceMapper) BeanTools.getBean(CraftProduceMapper.class);
+
+        CraftProduce craft = new CraftProduce();
+
+        craft.setBegintime(new Date());
+        craft.setUserid(getId());
+        craft.setType(type);
+        craft.setBuildingid(buildingId);
+        craft.setProductbaseid(itemId);
+        craft.setSize(baseCraft.OutputNum);
+        craft.setInproduce(list.size()); //排队待生产列表;
+        mapper.insertSelective(craft);
+        return craft;
+    }
+
+    /**
+     * 原材料是否充足;
+     *
+     * @param baseId the base id
+     * @return boolean
+     */
+    public boolean isEnoughStuff(int baseId) {
+        Craft baseCraft = ConfigManager.getInstance().getCraftById(baseId);
+        ArrayList<Integer> ids = new ArrayList<Integer>();
+        ArrayList<Integer> counts = new ArrayList<Integer>();
+
+        String[] str = baseCraft.Staff.split("\\|");
+        for (int i = 0; i < str.length; ++i) {
+            String[] obj = str[i].split("\\_");
+            int id = Integer.parseInt(obj[0]);
+            int count = Integer.parseInt(obj[1]);
+            Goods good = getPropByBaseId(id);
+            if (null == good || good.getCount() < count) {
+                return false;
+            }
+            ids.add(id);
+            counts.add(count);
+        }
+        for (int i = 0; i < ids.size(); ++i) {
+            Props p = getPropByBaseId(ids.get(i));
+            if (p.getCount() > counts.get(i)) {
+                p.setCount(p.getCount() - counts.get(i));
+                updateGoodsCountNumber(p);
+            } else {
+                deleteGoods(p);
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Remove craft by id boolean.
+     *
+     * @param id the id
+     * @return the boolean
+     */
+    public boolean removeCraftById(Long id) {
+        CraftProduceMapper mapper = (CraftProduceMapper) BeanTools.getBean(CraftProduceMapper.class);
+        int count = mapper.deleteByPrimaryKey(id);
+        return count > 0;
+    }
+
+    /**
+     * Gets craft by building id.
+     *
+     * @param buildingId the building id
+     * @return the craft by building id
+     */
+//根据建筑的id获得某一个正在合成的物品;
+    public CraftProduce getCraftByBuildingId(Long buildingId) {
+
+        CraftProduceMapper mapper = (CraftProduceMapper) BeanTools.getBean(CraftProduceMapper.class);
+        CraftProduceExample exp = new CraftProduceExample();
+        exp.clear();
+        CraftProduceExample.Criteria criteria3 = exp.createCriteria();
+        criteria3.andUseridEqualTo(getId()).andBuildingidEqualTo(buildingId);
+        List<CraftProduce> craftProduces = mapper.selectByExample(exp);
+        return craftProduces.isEmpty() ? null : craftProduces.get(0);
+    }
+
+
+    /**
+     * Gets friends.
+     *
+     * @return the friends
+     */
+    public List<Friend> getFriends() {
+        FriendMapper mapper = (FriendMapper) BeanTools.getBean(FriendMapper.class);
+        FriendExample exp = new FriendExample();
+        exp.clear();
+        FriendExample.Criteria criteria1 = exp.createCriteria();
+        criteria1.andUseridEqualTo(getId());
+        List<Friend> friends = mapper.selectByExample(exp);
+        return friends;
+    }
+
+    /**
+     * Gets user.
+     *
+     * @return the user
+     */
+    public User getUser() {
+        UserMapper mapper = (UserMapper) BeanTools.getBean(UserMapper.class);
+        UserExample exp = new UserExample();
+        exp.clear();
+        exp.createCriteria().andUseridEqualTo(getId());
+        List<User> users = mapper.selectByExample(exp);
+        return users.isEmpty() ? null : users.get(0);
+    }
+
+
+    /**
+     * Gets propss.
+     *
+     * @return the propss
+     */
+    public List<Props> getPropss() {
+        PropsMapper mapper = (PropsMapper) BeanTools.getBean(PropsMapper.class);
+        PropsExample exp = new PropsExample();
+        exp.clear();
+        exp.createCriteria().andUseridEqualTo(getId());
+        List<Props> props = mapper.selectByExample(exp);
+        return props;
+    }
+
+
+    /**
+     * Gets buildings.
+     *
+     * @return the buildings
+     */
+    public List<Building> getBuildings() {
+        BuildingMapper mapper = (BuildingMapper) BeanTools.getBean(BuildingMapper.class);
+        BuildingExample exp = new BuildingExample();
+        exp.clear();
+        exp.createCriteria().andUseridEqualTo(getId());
+        List<Building> buildings = mapper.selectByExample(exp);
+        return buildings;
+    }
+
+    /**
+     * Gets building by id.
+     *
+     * @param buildId the build id
+     * @return the building by id
+     */
+    public Building getBuildingByID(Long buildId) {
+        BuildingMapper mapper = (BuildingMapper) BeanTools.getBean(BuildingMapper.class);
+        BuildingExample exp = new BuildingExample();
+        exp.clear();
+        exp.createCriteria().andUseridEqualTo(getId()).andIdEqualTo(buildId);
+        List<Building> buildings = mapper.selectByExample(exp);
+        return buildings.isEmpty() ? null : buildings.get(0);
+    }
+
+    /**
+     * Gets animals.
+     *
+     * @return the animals
+     */
+    public List<Animal> getAnimals() {
+        AnimalMapper mapper = (AnimalMapper) BeanTools.getBean(AnimalMapper.class);
+        AnimalExample exp = new AnimalExample();
+        exp.clear();
+        AnimalExample.Criteria criteria2 = exp.createCriteria();
+        criteria2.andUseridEqualTo(getId());
+        List<Animal> animals = mapper.selectByExample(exp);
+        return animals;
+    }
+
+
+    /**
+     * 获取农作的列表;
+     *
+     * @return crops
+     */
+    public List<Props> getCrops() {
+        PropsMapper mapper = (PropsMapper) BeanTools.getBean(PropsMapper.class);
+        PropsExample exp = new PropsExample();
+        exp.clear();
+        exp.createCriteria().andUseridEqualTo(getId()).andTypeEqualTo(1);
+        List<Props> props = mapper.selectByExample(exp);
+        return props;
+    }
+
+    //添加一个农作物;
+
+
+    /**
+     * Add prop props.
+     *
+     * @param baseId the base id
+     * @param count  the count
+     * @return the props
+     */
+    public Props addProp(int baseId, int count) {
+        PropsMapper mapper = (PropsMapper) BeanTools.getBean(PropsMapper.class);
+        Item item = ConfigManager.getInstance().getItemById(baseId);
+        Props c = getPropByBaseId(baseId);
+
+        if (null != c) {
+            c.setCount(c.getCount() + count);
+            return c;
+
+        } else {
+            Props crop = new Props();
+            crop.setUserid(getId());
+            crop.setBaseid(baseId);
+            crop.setStatus(0);
+            crop.setTargetId(0L);
+            crop.setCount(count);
+            crop.setType(item.Type);
+            mapper.insertSelective(crop);
+            return crop;
+        }
+    }
+
+    /**
+     * Gets orders.
+     *
+     * @return the orders
+     */
+    public List<UserOrder> getOrders() {
+        UserOrderMapper mapper = (UserOrderMapper) BeanTools.getBean(UserOrderMapper.class);
+        UserOrderExample exp = new UserOrderExample();
+        exp.clear();
+        UserOrderExample.Criteria criteria = exp.createCriteria();
+        criteria.andUseridEqualTo(getId());
+        List<UserOrder> orders = mapper.selectByExample(exp);
+        return orders;
+    }
+
+    /**
+     * Gets street market info by user id.
+     *
+     * @param userid the userid
+     * @return the street market info by user id
+     */
+/*
+    * 根据用户id获取所有已上架物品
+    * */
+    public List<StreetMarket> getStreetMarketInfoByUserId(Long userid) {
+        StreetMarketMapper mapper = (StreetMarketMapper) BeanTools.getBean(StreetMarketMapper.class);
+        StreetMarketExample exp = new StreetMarketExample();
+        exp.clear();
+        exp.createCriteria().andUseridEqualTo(userid);
+        List<StreetMarket> streetMarketList = mapper.selectByExample(exp);
+        return streetMarketList;
+    }
+
+    /**
+     * Gets one street market info.
+     *
+     * @param id the id
+     * @return the one street market info
+     */
+/*
+    * 根据streetmarket id获取单行数据
+    * */
+    public StreetMarket getOneStreetMarketInfo(Long id) {
+        StreetMarketMapper mapper = (StreetMarketMapper) BeanTools.getBean(StreetMarketMapper.class);
+        StreetMarket streetMarket = mapper.selectByPrimaryKey(id);
+        return streetMarket;
+    }
+
+    /**
+     * Add street market goods boolean.
+     *
+     * @param streetMarket the street market
+     * @return the boolean
+     */
+/*
+    *物品上架在streetmarket表中新增数据
+    * */
+    public boolean addStreetMarketGoods(StreetMarket streetMarket) {
+        StreetMarketMapper mapper = (StreetMarketMapper) BeanTools.getBean(StreetMarketMapper.class);
+        int row = mapper.insertSelective(streetMarket);
+        return row > 0;
+    }
+
+    /**
+     * Update street market goods boolean.
+     *
+     * @param streetMarket the street market
+     * @return the boolean
+     */
+/*
+    * 更新streetmarket表中的数据（在购买地摊物品时更改物品状态）
+    * */
+    public boolean updateStreetMarketGoods(StreetMarket streetMarket) {
+        StreetMarketMapper mapper = (StreetMarketMapper) BeanTools.getBean(StreetMarketMapper.class);
+        int row = mapper.updateByPrimaryKeySelective(streetMarket);
+        return row > 0;
+    }
+
+    /*
+    * 物品上架后在crops表或grops表中更新count值
+    * */
+
+
+    /**
+     * Update goods count number boolean.
+     *
+     * @param props the props
+     * @return the boolean
+     */
+    public boolean updateGoodsCountNumber(Props props) {
+        int row;
+        row = propsMapper.updateByPrimaryKeySelective(props);
+        return row > 0;
+    }
+
+    /*
+    * 添加购买物品：购买物品后，当玩家没有该物品信息，需要新增数据
+    * */
+
+    /**
+     * Add buy goods boolean.
+     *
+     * @param props the props
+     * @return the boolean
+     */
+    public boolean addBuyGoods(Props props) {
+        int row;
+        row = propsMapper.insertSelective(props);
+        return row > 0;
+    }
+
+    /**
+     * Delete street market goods boolean.
+     *
+     * @param id the id
+     * @return the boolean
+     */
+/*
+    * 物品下架后删除streetmarket表中数据
+    * */
+    public boolean deleteStreetMarketGoods(Long id) {
+        StreetMarketMapper mapper = (StreetMarketMapper) BeanTools.getBean(StreetMarketMapper.class);
+        int row = mapper.deleteByPrimaryKey(id);
+        return row > 0;
+    }
+
+    /**
+     * Is equals stall number street market.
+     *
+     * @param userid      the userid
+     * @param stallnumber the stallnumber
+     * @return the street market
+     */
+/*
+    * 查询玩家对应的摊位上是否有物品
+    * */
+    public StreetMarket isEqualsStallNumber(Long userid, Integer stallnumber) {
+        StreetMarketMapper mapper = (StreetMarketMapper) BeanTools.getBean(StreetMarketMapper.class);
+        StreetMarketExample exp = new StreetMarketExample();
+        exp.clear();
+        exp.createCriteria().andUseridEqualTo(userid).andStallnumberEqualTo(stallnumber);
+        List<StreetMarket> streetMarketList = mapper.selectByExample(exp);
+        return streetMarketList.isEmpty() ? null : streetMarketList.get(0);
+    }
+
+    /*
+    * 根据类型查询仓库
+    * */
+    public List<Props> getWareHouse(Long userid,Integer type) {
+        PropsMapper mapper = (PropsMapper) BeanTools.getBean(PropsMapper.class);
+        PropsExample exp = new PropsExample();
+        exp.clear();
+        exp.createCriteria().andUseridEqualTo(userid).andTypeEqualTo(type);
+        List<Props> props = mapper.selectByExample(exp);
+        return props;
+    }
+
+    /**
+     * Delete goods boolean.
+     *
+     * @param props the props
+     * @return the boolean
+     * @Author:Tian
+     * @Description: 物品上架后仓库中的count数若为0 ，则删除仓库的这条数据
+     * @Date: 12 :28 2018/1/4
+     */
+    public boolean deleteGoods(Props props) {
+        int row;
+        row = propsMapper.deleteByPrimaryKey(props.getId());
+        return row > 0;
+    }
+
+
+    /**
+     * Update user boolean.
+     *
+     * @param user the user
+     * @return the boolean
+     */
+/*
+    * 更新玩家数据:购买物品后玩家的金钱数增减
+    * */
+    public boolean updateUser(User user) {
+        int row = userMapper.updateByPrimaryKeySelective(user);
+        return row > 0;
+    }
+
+
+    /**
+     * Get car info by user id list.
+     *
+     * @param userid the userid
+     * @return the list
+     * @Author:Tian
+     * @Description: 获取车库信息
+     * @Date: 10 :17 2018/1/4
+     */
+    public List<CarInfo> getCarInfoByUserId(Long userid) {
+        CarInfoMapper mapper = (CarInfoMapper) BeanTools.getBean(CarInfoMapper.class);
+        CarInfoExample exp = new CarInfoExample();
+        exp.clear();
+        exp.createCriteria().andUseridEqualTo(userid);
+        List<CarInfo> carInfoList = mapper.selectByExample(exp);
+        return carInfoList;
+    }
+
+    /**
+     * Get one car info car info.
+     *
+     * @param carinfoid the carinfoid
+     * @return the car info
+     * @Author:Tian
+     * @Description: 获取一辆车的信息
+     * @Date: 13 :42 2018/1/5
+     */
+    public CarInfo getOneCarInfo(Long carinfoid) {
+        CarInfoMapper mapper = (CarInfoMapper) BeanTools.getBean(CarInfoMapper.class);
+        CarInfo carInfo = mapper.selectByPrimaryKey(carinfoid);
+        return carInfo;
+    }
+
+    /**
+     * Get message list.
+     *
+     * @param carinfoid the carinfoid
+     * @return the list
+     * @Author:Tian
+     * @Description: 获取留言信息
+     * @Date: 19 :06 2018/1/4
+     */
+    public List<Message> getMessage(Long carinfoid) {
+        MessageMapper mapper = (MessageMapper) BeanTools.getBean(MessageMapper.class);
+        MessageExample exp = new MessageExample();
+        exp.clear();
+        exp.createCriteria().andCarinfoidEqualTo(carinfoid);
+        exp.setOrderByClause("date asc");
+        List<Message> messageList = mapper.selectByExampleWithBLOBs(exp);
+        return messageList;
+    }
+
+    /**
+     * Get like info count integer.
+     *
+     * @param carinfoid the carinfoid
+     * @return the integer
+     * @Author:Tian
+     * @Description: 获得点赞数量
+     * @Date: 19 :42 2018/1/4
+     */
+    public Integer getLikeInfoCount(Long carinfoid) {
+        LikeInfoMapper mapper = (LikeInfoMapper) BeanTools.getBean(LikeInfoMapper.class);
+        LikeInfoExample exp = new LikeInfoExample();
+        exp.clear();
+        exp.createCriteria().andCarinfoidEqualTo(carinfoid);
+        int likeinfonum = mapper.countByExample(exp);
+        return likeinfonum;
+    }
+
+    /**
+     * User is like info boolean.
+     *
+     * @param carinfoid the carinfoid
+     * @param userid    the userid
+     * @return the boolean
+     * @Author:Tian
+     * @Description: 判断玩家是否已点过赞
+     * @Date: 19 :55 2018/1/4
+     */
+    public boolean userIsLikeInfo(Long carinfoid, Long userid) {
+        LikeInfoMapper mapper = (LikeInfoMapper) BeanTools.getBean(LikeInfoMapper.class);
+        LikeInfoExample exp = new LikeInfoExample();
+        exp.clear();
+        exp.createCriteria().andCarinfoidEqualTo(carinfoid).andUseridEqualTo(userid);
+        List<LikeInfo> likeInfoList = mapper.selectByExample(exp);
+        if (likeInfoList == null || likeInfoList.size() == 0) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    /**
+     * Add like info boolean.
+     *
+     * @param likeInfo the like info
+     * @return the boolean
+     * @Author:Tian
+     * @Description: 点赞功能
+     * @Date: 10 :03 2018/1/5
+     */
+    public boolean addLikeInfo(LikeInfo likeInfo) {
+        LikeInfoMapper mapper = (LikeInfoMapper) BeanTools.getBean(LikeInfoMapper.class);
+        int row = mapper.insertSelective(likeInfo);
+        return row > 0;
+    }
+
+    /**
+     * Add new car info boolean.
+     *
+     * @param carInfo the car info
+     * @return the boolean
+     * @Author:Tian
+     * @Description: 添加新车
+     * @Date: 13 :43 2018/1/5
+     */
+    public boolean addNewCarInfo(CarInfo carInfo) {
+        CarInfoMapper mapper = (CarInfoMapper) BeanTools.getBean(CarInfoMapper.class);
+        int row = mapper.insertSelective(carInfo);
+        return row > 0;
+    }
+
+    /**
+     * Is userhave the car boolean.
+     *
+     * @param userid the userid
+     * @param carid  the carid
+     * @return the boolean
+     * @Author:Tian
+     * @Description: 根据userid和carid获取车辆信息, 判断玩家是否已有该车辆
+     * @Date: 13 :48 2018/1/5
+     */
+    public boolean isUserhaveTheCar(long userid, Integer carid) {
+        CarInfoMapper mapper = (CarInfoMapper) BeanTools.getBean(CarInfoMapper.class);
+        CarInfoExample exp = new CarInfoExample();
+        exp.clear();
+        exp.createCriteria().andUseridEqualTo(userid).andCaridEqualTo(carid);
+        List<CarInfo> carInfoList = mapper.selectByExample(exp);
+        if (carInfoList == null || carInfoList.size() == 0) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    /**
+     * Update carinfo boolean.
+     *
+     * @param carInfo the car info
+     * @return the boolean
+     * @Author:Tian
+     * @Description: 放出车辆 ，更改车辆信息
+     * @Date: 14 :22 2018/1/5
+     */
+    public boolean updateCarinfo(CarInfo carInfo) {
+        CarInfoMapper mapper = (CarInfoMapper) BeanTools.getBean(CarInfoMapper.class);
+        int row = mapper.updateByPrimaryKeySelective(carInfo);
+        return row > 0;
+    }
+
+    /**
+     * Get parking car info by user list.
+     *
+     * @param userid the userid
+     * @return the list
+     * @Author:Tian
+     * @Description: 获取所有已放出的车辆信息
+     * @Date: 14 :38 2018/1/5
+     */
+    public List<CarInfo> getParkingCarInfoByUser(Long userid) {
+        CarInfoMapper mapper = (CarInfoMapper) BeanTools.getBean(CarInfoMapper.class);
+        CarInfoExample exp = new CarInfoExample();
+        exp.clear();
+        exp.createCriteria().andUseridEqualTo(userid).andParkingGreaterThan(0);
+        List<CarInfo> carInfoList = mapper.selectByExample(exp);
+        return carInfoList;
+    }
+
+    /**
+     * Add message boolean.
+     *
+     * @param message the message
+     * @return the boolean
+     * @Author:Tian
+     * @Description: 添加留言
+     * @Date: 14 :58 2018/1/5
+     */
+    public boolean addMessage(Message message) {
+        MessageMapper mapper = (MessageMapper) BeanTools.getBean(MessageMapper.class);
+        int row = mapper.insertSelective(message);
+        return row > 0;
+    }
+
+    /**
+     *@Author: Tian
+     *@Description: 根据msgid获取留言信息
+     *@Date: 10:59 2018/1/8
+     */
+    public Message getMessageById(Long msgid){
+        MessageMapper mapper = (MessageMapper) BeanTools.getBean(MessageMapper.class);
+        Message message = mapper.selectByPrimaryKey(msgid);
+        return message;
+    }
+
+    /**
+     *@Author:Tian
+     *@Description: 删除留言
+     *@Date: 11:36 2018/1/8
+     */
+    public boolean deleteMessage(Long msgid){
+        MessageMapper mapper = (MessageMapper) BeanTools.getBean(MessageMapper.class);
+        int row = mapper.deleteByPrimaryKey(msgid);
+        return row>0;
+    }
+
+    /**
+     *@Author:Tian
+     *@Description: 根据停车位和userid查询车辆，判断停车位上是否已有车辆
+     *@Date: 15:31 2018/1/8
+     */
+    public boolean isLocationHaveCar(Long userid,Integer parklocation){
+        CarInfoMapper mapper = (CarInfoMapper) BeanTools.getBean(CarInfoMapper.class);
+        CarInfoExample exp = new CarInfoExample();
+        exp.clear();
+        exp.createCriteria().andUseridEqualTo(userid).andParkingEqualTo(parklocation);
+        List<CarInfo> carInfoList = mapper.selectByExample(exp);
+        if(carInfoList==null||carInfoList.size()==0){
+            return false;
+        }else{
+            return true;
+        }
+    }
+ /*   public List getWarehouse() {
+        CropsMapper  mapper = (CropsMapper) BeanTools.getBean(CropsMapper.class);
+        CropsExample exp = new CropsExample();
+        exp.clear();
+        exp.createCriteria().andUseridEqualTo(getId());
+        exp.createCriteria().andWarehouseEqualTo(1);
+        List<Crops> crops = mapper.selectByExample(exp);
+        return crops;
+    }*/
+
+    private List<Props> s_props;
+
+
+    /**
+     * Gets prop by base id.
+     *
+     * @param baseid the baseid
+     * @return the prop by base id
+     */
+    public Props getPropByBaseId(Integer baseid) {
+        PropsMapper mapper = (PropsMapper) BeanTools.getBean(PropsMapper.class);
+        PropsExample exp = new PropsExample();
+        exp.clear();
+        PropsExample.Criteria criteria4 = exp.createCriteria();
+        criteria4.andUseridEqualTo(getId()).andBaseidEqualTo(baseid);
+        List<Props> props = mapper.selectByExample(exp);
+        return props.isEmpty() ? null : props.get(0);
+
+    }
+
+
+    /**
+     * Gets prop by id.
+     *
+     * @param Id the id
+     * @return the prop by id
+     */
+    public Props getPropById(Long Id) {
+        PropsMapper mapper = (PropsMapper) BeanTools.getBean(PropsMapper.class);
+        PropsExample exp = new PropsExample();
+        exp.clear();
+
+        PropsExample.Criteria criteria4 = exp.createCriteria();
+        criteria4.andUseridEqualTo(getId()).andIdEqualTo(Id.longValue());
+        List<Props> props = mapper.selectByExample(exp);
+
+        return props.isEmpty() ? null : props.get(0);
+
+    }
+
+
+
+
+
+
+    /**
+     * Gets pets.
+     *
+     * @return the pets
+     */
+    public List<PetData> getPets() {
+        PetDataMapper bean = (PetDataMapper) BeanTools.getBean(PetDataMapper.class);
+        PetDataExample pe = new PetDataExample();
+        pe.clear();
+        pe.createCriteria().andUseridEqualTo(getId());
+        List<PetData> petData = bean.selectByExample(pe);
+        return petData == null ? new ArrayList<PetData>(0) : petData;
+    }
+
+    /**
+     * Add pet.
+     *
+     * @param petData the pet data
+     */
+    public void addPet(PetData petData) {
+        petDataMapper.insertSelective(petData);
+    }
+
+    /**
+     * Update pet.
+     *
+     * @param petData the pet data
+     */
+    public void updatePet(PetData petData) {
+        petDataMapper.updateByPrimaryKeySelective(petData);
+    }
+
+    /**
+     * Remove tele bo oth.
+     *
+     * @param booth the booth
+     */
+    public void removeTeleBOOth(TeleBooth booth) {
+        teleBoothMapper.deleteByPrimaryKey(booth.getId());
+    }
+
+    /**
+     * Gets pet.
+     *
+     * @param id the id
+     * @return the pet
+     */
+    public PetData getPet(Long id) {
+        List<PetData> pets = this.getPets();
+        for (PetData pet : pets) {
+            if (pet.getId().longValue() == id.longValue()) {
+                return pet;
+            }
+        }
+        return null;
+    }
+
+
+    /**
+     * Add building.
+     *
+     * @param building the building
+     */
+    public void addBuilding(Building building) {
+        buildingMapper.insertSelective(building);
+    }
+
+    /**
+     * Update craft.
+     *
+     * @param craftProduce the craft produce
+     */
+    public void updateCraft(CraftProduce craftProduce) {
+        craftProduceMapper.updateByPrimaryKeySelective(craftProduce);
+    }
+
+    /**
+     * Gets one building.
+     *
+     * @param rubbishid the rubbishid
+     * @return the one building
+     */
+    public Building getOneBuilding(Long rubbishid) {
+
+        return buildingMapper.selectByPrimaryKey(rubbishid);
+
+    }
+
+    /**
+     * Remove building.
+     *
+     * @param oneBuilding the one building
+     */
+    public void removeBuilding(Building oneBuilding) {
+        buildingMapper.deleteByPrimaryKey(oneBuilding.getId());
+    }
+
+    /**
+     * Gets agree friends.
+     *
+     * @return the agree friends
+     */
+    public List<Friend> getAgreeFriends() {
+        FriendExample friendExample = new FriendExample();
+        friendExample.clear();
+        FriendExample.Criteria criteria = friendExample.createCriteria();
+        criteria.andUseridEqualTo(id).andAgreeEqualTo(EFriendType.AGREE.ID());
+        return friendMapper.selectByExample(friendExample);
+
+
+    }
+
+    /**
+     * The Friend info mapper.
+     */
+    @Autowired
+    FriendInfoMapper friendInfoMapper;
+
+    /**
+     * Gets owner info.
+     *
+     * @return the owner info
+     */
+    public FriendInfo getOwnerInfo() {
+        return friendInfoMapper.selectOwnerInfo(id);
+
+    }
+
+    public FriendInfo getOneFriendinfo(Long friendid) {
+        List<FriendInfo> friendList = this.getFriendList();
+        for (FriendInfo friendInfo : friendList) {
+            if (friendInfo.getFriendid().longValue() == friendid.longValue()) {
+                return friendInfo;
+            }
+        }
+        return null;
+    }
+}

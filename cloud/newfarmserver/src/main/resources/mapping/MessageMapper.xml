@@ -1,0 +1,278 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.fngame.farm.mapper.MessageMapper" >
+    <cache type="com.fngame.farm.configer.baseconfiger.MybatisRedisCache">
+        <property name="eviction" value="LRU" />
+        <property name="flushInterval" value="6000000" />
+        <property name="size" value="1024" />
+        <property name="readOnly" value="false" />
+    </cache>
+  <resultMap id="BaseResultMap" type="com.fngame.farm.model.Message" >
+    <id column="msgid" property="msgid" jdbcType="BIGINT" />
+    <result column="carinfoid" property="carinfoid" jdbcType="BIGINT" />
+    <result column="from_userid" property="fromUserid" jdbcType="BIGINT" />
+    <result column="to_userid" property="toUserid" jdbcType="BIGINT" />
+    <result column="date" property="date" jdbcType="TIMESTAMP" />
+  </resultMap>
+  <resultMap id="ResultMapWithBLOBs" type="com.fngame.farm.model.Message" extends="BaseResultMap" >
+    <result column="content" property="content" jdbcType="LONGVARCHAR" />
+  </resultMap>
+  <sql id="Example_Where_Clause" >
+    <where >
+      <foreach collection="oredCriteria" item="criteria" separator="or" >
+        <if test="criteria.valid" >
+          <trim prefix="(" suffix=")" prefixOverrides="and" >
+            <foreach collection="criteria.criteria" item="criterion" >
+              <choose >
+                <when test="criterion.noValue" >
+                  and ${criterion.condition}
+                </when>
+                <when test="criterion.singleValue" >
+                  and ${criterion.condition} #{criterion.value}
+                </when>
+                <when test="criterion.betweenValue" >
+                  and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                </when>
+                <when test="criterion.listValue" >
+                  and ${criterion.condition}
+                  <foreach collection="criterion.value" item="listItem" open="(" close=")" separator="," >
+                    #{listItem}
+                  </foreach>
+                </when>
+              </choose>
+            </foreach>
+          </trim>
+        </if>
+      </foreach>
+    </where>
+  </sql>
+  <sql id="Update_By_Example_Where_Clause" >
+    <where >
+      <foreach collection="example.oredCriteria" item="criteria" separator="or" >
+        <if test="criteria.valid" >
+          <trim prefix="(" suffix=")" prefixOverrides="and" >
+            <foreach collection="criteria.criteria" item="criterion" >
+              <choose >
+                <when test="criterion.noValue" >
+                  and ${criterion.condition}
+                </when>
+                <when test="criterion.singleValue" >
+                  and ${criterion.condition} #{criterion.value}
+                </when>
+                <when test="criterion.betweenValue" >
+                  and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                </when>
+                <when test="criterion.listValue" >
+                  and ${criterion.condition}
+                  <foreach collection="criterion.value" item="listItem" open="(" close=")" separator="," >
+                    #{listItem}
+                  </foreach>
+                </when>
+              </choose>
+            </foreach>
+          </trim>
+        </if>
+      </foreach>
+    </where>
+  </sql>
+  <sql id="Base_Column_List" >
+    msgid, carinfoid, from_userid, to_userid, date
+  </sql>
+  <sql id="Blob_Column_List" >
+    content
+  </sql>
+  <select id="selectByExampleWithBLOBs" resultMap="ResultMapWithBLOBs" parameterType="com.fngame.farm.model.MessageExample" >
+    select
+    <if test="distinct" >
+      distinct
+    </if>
+    'true' as QUERYID,
+    <include refid="Base_Column_List" />
+    ,
+    <include refid="Blob_Column_List" />
+    from fm_message
+    <if test="_parameter != null" >
+      <include refid="Example_Where_Clause" />
+    </if>
+    <if test="orderByClause != null" >
+      order by ${orderByClause}
+    </if>
+  </select>
+  <select id="selectByExample" resultMap="BaseResultMap" parameterType="com.fngame.farm.model.MessageExample" >
+    select
+    <if test="distinct" >
+      distinct
+    </if>
+    'true' as QUERYID,
+    <include refid="Base_Column_List" />
+    from fm_message
+    <if test="_parameter != null" >
+      <include refid="Example_Where_Clause" />
+    </if>
+    <if test="orderByClause != null" >
+      order by ${orderByClause}
+    </if>
+  </select>
+  <select id="selectByPrimaryKey" resultMap="ResultMapWithBLOBs" parameterType="java.lang.Long" >
+    select 
+    <include refid="Base_Column_List" />
+    ,
+    <include refid="Blob_Column_List" />
+    from fm_message
+    where msgid = #{msgid,jdbcType=BIGINT}
+  </select>
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Long" >
+    delete from fm_message
+    where msgid = #{msgid,jdbcType=BIGINT}
+  </delete>
+  <delete id="deleteByExample" parameterType="com.fngame.farm.model.MessageExample" >
+    delete from fm_message
+    <if test="_parameter != null" >
+      <include refid="Example_Where_Clause" />
+    </if>
+  </delete>
+  <insert id="insert" parameterType="com.fngame.farm.model.Message" >
+    insert into fm_message (msgid, carinfoid, from_userid, 
+      to_userid, date, content
+      )
+    values (#{msgid,jdbcType=BIGINT}, #{carinfoid,jdbcType=BIGINT}, #{fromUserid,jdbcType=BIGINT}, 
+      #{toUserid,jdbcType=BIGINT}, #{date,jdbcType=TIMESTAMP}, #{content,jdbcType=LONGVARCHAR}
+      )
+  </insert>
+  <insert id="insertSelective" parameterType="com.fngame.farm.model.Message" >
+    insert into fm_message
+    <trim prefix="(" suffix=")" suffixOverrides="," >
+      <if test="msgid != null" >
+        msgid,
+      </if>
+      <if test="carinfoid != null" >
+        carinfoid,
+      </if>
+      <if test="fromUserid != null" >
+        from_userid,
+      </if>
+      <if test="toUserid != null" >
+        to_userid,
+      </if>
+      <if test="date != null" >
+        date,
+      </if>
+      <if test="content != null" >
+        content,
+      </if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides="," >
+      <if test="msgid != null" >
+        #{msgid,jdbcType=BIGINT},
+      </if>
+      <if test="carinfoid != null" >
+        #{carinfoid,jdbcType=BIGINT},
+      </if>
+      <if test="fromUserid != null" >
+        #{fromUserid,jdbcType=BIGINT},
+      </if>
+      <if test="toUserid != null" >
+        #{toUserid,jdbcType=BIGINT},
+      </if>
+      <if test="date != null" >
+        #{date,jdbcType=TIMESTAMP},
+      </if>
+      <if test="content != null" >
+        #{content,jdbcType=LONGVARCHAR},
+      </if>
+    </trim>
+  </insert>
+  <select id="countByExample" parameterType="com.fngame.farm.model.MessageExample" resultType="java.lang.Integer" >
+    select count(*) from fm_message
+    <if test="_parameter != null" >
+      <include refid="Example_Where_Clause" />
+    </if>
+  </select>
+  <update id="updateByExampleSelective" parameterType="map" >
+    update fm_message
+    <set >
+      <if test="record.msgid != null" >
+        msgid = #{record.msgid,jdbcType=BIGINT},
+      </if>
+      <if test="record.carinfoid != null" >
+        carinfoid = #{record.carinfoid,jdbcType=BIGINT},
+      </if>
+      <if test="record.fromUserid != null" >
+        from_userid = #{record.fromUserid,jdbcType=BIGINT},
+      </if>
+      <if test="record.toUserid != null" >
+        to_userid = #{record.toUserid,jdbcType=BIGINT},
+      </if>
+      <if test="record.date != null" >
+        date = #{record.date,jdbcType=TIMESTAMP},
+      </if>
+      <if test="record.content != null" >
+        content = #{record.content,jdbcType=LONGVARCHAR},
+      </if>
+    </set>
+    <if test="_parameter != null" >
+      <include refid="Update_By_Example_Where_Clause" />
+    </if>
+  </update>
+  <update id="updateByExampleWithBLOBs" parameterType="map" >
+    update fm_message
+    set msgid = #{record.msgid,jdbcType=BIGINT},
+      carinfoid = #{record.carinfoid,jdbcType=BIGINT},
+      from_userid = #{record.fromUserid,jdbcType=BIGINT},
+      to_userid = #{record.toUserid,jdbcType=BIGINT},
+      date = #{record.date,jdbcType=TIMESTAMP},
+      content = #{record.content,jdbcType=LONGVARCHAR}
+    <if test="_parameter != null" >
+      <include refid="Update_By_Example_Where_Clause" />
+    </if>
+  </update>
+  <update id="updateByExample" parameterType="map" >
+    update fm_message
+    set msgid = #{record.msgid,jdbcType=BIGINT},
+      carinfoid = #{record.carinfoid,jdbcType=BIGINT},
+      from_userid = #{record.fromUserid,jdbcType=BIGINT},
+      to_userid = #{record.toUserid,jdbcType=BIGINT},
+      date = #{record.date,jdbcType=TIMESTAMP}
+    <if test="_parameter != null" >
+      <include refid="Update_By_Example_Where_Clause" />
+    </if>
+  </update>
+  <update id="updateByPrimaryKeySelective" parameterType="com.fngame.farm.model.Message" >
+    update fm_message
+    <set >
+      <if test="carinfoid != null" >
+        carinfoid = #{carinfoid,jdbcType=BIGINT},
+      </if>
+      <if test="fromUserid != null" >
+        from_userid = #{fromUserid,jdbcType=BIGINT},
+      </if>
+      <if test="toUserid != null" >
+        to_userid = #{toUserid,jdbcType=BIGINT},
+      </if>
+      <if test="date != null" >
+        date = #{date,jdbcType=TIMESTAMP},
+      </if>
+      <if test="content != null" >
+        content = #{content,jdbcType=LONGVARCHAR},
+      </if>
+    </set>
+    where msgid = #{msgid,jdbcType=BIGINT}
+  </update>
+  <update id="updateByPrimaryKeyWithBLOBs" parameterType="com.fngame.farm.model.Message" >
+    update fm_message
+    set carinfoid = #{carinfoid,jdbcType=BIGINT},
+      from_userid = #{fromUserid,jdbcType=BIGINT},
+      to_userid = #{toUserid,jdbcType=BIGINT},
+      date = #{date,jdbcType=TIMESTAMP},
+      content = #{content,jdbcType=LONGVARCHAR}
+    where msgid = #{msgid,jdbcType=BIGINT}
+  </update>
+  <update id="updateByPrimaryKey" parameterType="com.fngame.farm.model.Message" >
+    update fm_message
+    set carinfoid = #{carinfoid,jdbcType=BIGINT},
+      from_userid = #{fromUserid,jdbcType=BIGINT},
+      to_userid = #{toUserid,jdbcType=BIGINT},
+      date = #{date,jdbcType=TIMESTAMP}
+    where msgid = #{msgid,jdbcType=BIGINT}
+  </update>
+</mapper>

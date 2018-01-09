@@ -1,0 +1,40 @@
+package com.fngame.farm.service;
+
+import com.fngame.farm.manager.PlayerManager;
+import com.fngame.farm.model.CarInfo;
+import com.fngame.farm.userdate.PlayerInfo;
+import com.fngame.farm.userdate.ResultInfo;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.HashMap;
+import java.util.List;
+
+/**
+ * @Author:Tian
+ * @Description： 停车场的业务逻辑
+ * @Date:Created in 16:47 2018/1/3
+ * @Modified By:
+ */
+@Service
+public class CarInfoService {
+
+    @Autowired
+    PlayerManager PlayerManager;
+
+    /**
+     *@Author:Tian
+     *@Description:
+     *@Date: 10:12 2018/1/4
+     */
+    public List<CarInfo> getCarInfoByUserId(ResultInfo resultInfo,Long userid){
+        PlayerInfo playerInfo = PlayerManager.getPlayer(userid);
+        List<CarInfo> carInfoList = playerInfo.getCarInfoByUserId(userid);
+        if(carInfoList==null||carInfoList.size()==0){
+            resultInfo.setResp_code("111001");
+        }
+        HashMap<String, Object> data = resultInfo.getData();
+        data.put("carInfoList",carInfoList);
+        return carInfoList;
+    }
+}

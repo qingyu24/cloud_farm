@@ -1,0 +1,121 @@
+package com.fngame.farm.service;
+
+import com.fngame.farm.configer.Entity;
+import com.fngame.farm.manager.ConfigManager;
+import com.fngame.farm.manager.PlayerManager;
+import com.fngame.farm.model.Building;
+import com.fngame.farm.model.User;
+import com.fngame.farm.userdate.PlayerInfo;
+import com.fngame.farm.userdate.ResultInfo;
+import com.sun.org.apache.bcel.internal.generic.ARRAYLENGTH;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import javax.annotation.Resource;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+
+@Service
+public class BuildingService {
+    @Resource
+    PlayerManager playerManager;
+    @Autowired
+    ConfigManager configManager;
+
+
+    Logger logger = LoggerFactory.getLogger(this.getClass());
+
+
+    @Transactional
+    public Boolean add(ResultInfo resultInfo, Building building) throws Exception {
+
+
+        Entity bco = configManager.getBuildingConfig(building);
+        if (bco == null) {
+            resultInfo.setResult("200004", "该类型建筑不存在");
+            return false;
+        }
+        PlayerInfo player = playerManager.getPlayer(building.getUserid());
+        User user = player.getUser();
+        String[] split = bco.BuildPrice.split("_");
+        if (split.length != 2) {
+
+            resultInfo.setResult("200005", "读取配置信息有误");
+            return false;
+        }
+
+        //todo 对应价格核算  稍后完善
+        Integer s = Integer.valueOf(split[0]);
+        Integer price = Integer.valueOf(split[1]);
+        if (user.getMoney() < price) {
+            resultInfo.setResp_code("100002");
+        }
+        user.setMoney(user.getMoney() - price);
+        player.updateUser(user);
+
+        List<Building> buildingByBaseID = player.getBuildingByBaseID(building.getBaseid());
+
+        if (bco.BuildLimited <= (buildingByBaseID == null ? 0 : buildingByBaseID.size())) {
+            resultInfo.setResult("003", "该类建筑数量已达上限");
+            return false;
+        }
+
+        if (bco.UnlockLv > user.getLevel()) {
+            resultInfo.setResult("002", "玩家等级不足");
+            return false;
+        }
+
+        //前置建筑
+        //加上其他判断条件
+
+        building.setBeginTime(new Date());
+        player.addBuilding(building);
+
+        return true;
+
+    }
+
+
+    public Boolean modify(ResultInfo resultInfo, Building building) {
+        PlayerInfo player = playerManager.getPlayer(building.getUserid());
+        Entity bco = configManager.getBuildingConfig(building);
+        if (bco == null) {
+            resultInfo.setResult("001", "该类型建筑不存在");
+            return false;
+        }
+        if (bco.Move != 1 && (building.getXpos() != null || building.getYpos() != null)) {
+            resultInfo.setResult("00001", "该建筑不能移动");
+            return false;
+        }
+        if (building.getDir() != null && bco.Flip != 1) {
+            resultInfo.setResult("00001", "该建筑不能转动");
+            return false;
+        }
+        player.updateBuilding(building);
+        return true;
+    }
+
+
+    public Boolean remove(ResultInfo resultInfo, Building building) {
+        PlayerInfo player = playerManager.getPlayer(building.getUserid());
+
+        Entity bco = configManager.getBuildingConfig(building);
+        if (bco == null) {
+            resultInfo.setResult("001", "该类型建筑不存在");
+            return false;
+        }
+        if (bco.Clear == 1) {
+            player.removeBuilding(building);
+
+            return true;
+        }
+
+        return false;
+    }
+
+}

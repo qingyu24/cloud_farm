@@ -1,0 +1,203 @@
+package com.fngame.farm.manager;
+
+import com.fngame.farm.configer.*;
+import com.fngame.farm.model.Animal;
+import com.fngame.farm.model.Building;
+import com.fngame.farm.userdate.PlayerInfo;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+@Component
+
+public class ConfigManager {
+    public static ConfigManager instance;
+    public static ConfigManager getInstance() {
+        if (instance == null) {
+            instance = new ConfigManager();
+        }
+        return instance;
+    }
+
+    private HashMap<String, ArrayList> loades = ConfigLoaderManager.getInstance().getLoaders();
+
+
+
+    public List getloader(Object o) {
+        return loades.get(o.getClass().getSimpleName());
+    }
+
+    @Cacheable(value = "building_conf", key = "#o.baseid")
+    public Entity getBuildingConfig(Building o) {
+
+        ArrayList<Entity> arrayList = loades.get(Entity.class.getSimpleName());
+        if (o != null && arrayList != null) {
+            for (Entity Entity : arrayList) {
+                if (Entity.BuildingID.intValue() == o.getBaseid()) {
+                    return Entity;
+                }
+            }
+        }
+        return null;
+    }
+
+
+    /**
+     * 根据id获得某一个物品;
+     * @param Id
+     * @return
+     */
+    public Item getItemById(int Id) {
+        ArrayList<Item> arrayList = loades.get(Item.class.getSimpleName());
+        for (Item entity : arrayList) {
+            if (entity.ItemID == Id)
+                return entity;
+        }
+        return null;
+    }
+
+
+    /**
+     * 根据id获得某一个建筑;
+     * @param Id
+     * @return
+     */
+    public Entity getBuildingById(int Id) {
+        ArrayList<Entity> arrayList = loades.get(Entity.class.getSimpleName());
+        for (Entity entity : arrayList) {
+            if (entity.BuildingID == Id)
+                return entity;
+        }
+        return null;
+    }
+
+    public WareHouse getWareHouseByLevel(int wareLv){
+        ArrayList<WareHouse> arrayList = loades.get(WareHouse.class.getSimpleName());
+        for (WareHouse wareHouse : arrayList) {
+            if (wareHouse.WareLv == wareLv)
+                return wareHouse;
+        }
+        return null;
+    }
+
+
+    List list = new ArrayList(10);
+
+
+    public Craft getCraftById(int Id) {
+        ArrayList<Craft> arrayList = loades.get(Craft.class.getSimpleName());
+        for (Craft craft : arrayList) {
+            if (craft.ItemID == Id)
+                return craft;
+        }
+        return null;
+    }
+
+    public List<Order> getOrders(PlayerInfo playerInfo, int size) {
+
+        ArrayList<Order> arrayList = loades.get(Order.class.getSimpleName());
+        list.clear();
+
+        while (list.size() < size) {
+            int v = (int) (Math.random() * arrayList.size());
+            Order order = arrayList.get(v);
+            if (!list.contains(order)) {
+
+                list.add(order);
+
+            }
+        }
+        return list;
+    }
+
+    /*   @Cacheable(value = "Craft_conf", key = "#crops.baseid")
+       public Craft getCraft(Crops crops) {
+           ArrayList<Craft> list = loades.get(Craft.class.getSimpleName());
+           for (Craft crop : list) {
+               if (crops.getBaseid() == crop.ItemID) {
+                   return crop;
+               }
+           }
+
+           return null;
+       }
+   */
+
+
+
+    @Cacheable(value = "resp_conf", key = "#resp_code")
+    public String getResp(String resp_code) {
+
+        if (resp_code == null) return "未知错误1";
+        ArrayList<Resp> arrayList = loades.get(Resp.class.getSimpleName());
+        if (arrayList == null) return "配置信息有误";
+        for (Resp resp : arrayList) {
+            if (resp_code.equals(resp.resp_code)) {
+                return resp.resp_desc;
+            }
+        }
+        return "错误配置表没有对应错误";
+    }
+
+
+    public Entity getAnimalConfig(Animal animal) {
+
+
+        return null;
+    }
+  /*  @Cacheable(value = "Pets_conf", key = "#pets")*/
+    public Pets getPetsConfig(Integer pets) {
+        ArrayList<Pets> arrayList = loades.get(Pets.class.getSimpleName());
+        for (Pets o : arrayList) {
+            if (o.PetID.intValue() == pets.intValue())
+                return o;
+        }
+
+        return null;
+    }
+
+
+    @Cacheable(value = "Craft_conf", key = "#buildingid")
+    public Craft getCraft(Integer buildingid) {
+        ArrayList<Craft> arrayList = loades.get(Craft.class.getSimpleName());
+        for (Craft craft : arrayList) {
+            if (craft.PreBuilding == buildingid) {
+                return craft;
+            }
+        }
+        return null;
+    }
+
+
+    public skill getSkill(Integer skilid) {
+        ArrayList<skill> arrayList = loades.get(skill.class.getSimpleName());
+        for (skill skills : arrayList) {
+            if (skills.SkillID == skilid) {
+                return skills;
+            }
+        }
+        return null;
+    }
+
+    public Integer getLevelConfig(Integer level) {
+        ArrayList<PlayerLevel> arrayList = loades.get(PlayerLevel.class.getSimpleName());
+        for (PlayerLevel playerLevel : arrayList) {
+           if( playerLevel.Level.intValue()==level.intValue()){
+               return playerLevel.TotalExp;
+           }
+        }
+        return 0;
+    }
+
+    public Cars getCarConfig(Integer carid) {
+        ArrayList<Cars> arrayList = loades.get(Cars.class.getSimpleName());
+        for (Cars o : arrayList) {
+            if(Integer.valueOf(o.CarID).intValue()==carid.intValue()){
+                return o;
+            }
+        }
+        return null;
+    }
+}

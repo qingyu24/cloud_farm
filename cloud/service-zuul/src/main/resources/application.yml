@@ -1,7 +1,9 @@
 eureka:
   client:
     serviceUrl:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: http://192.168.1.253:8761/eureka/
+
+
 server:
   port: 8769
 spring:
@@ -13,6 +15,18 @@ zuul:
       path: /farm/**
       serviceId: farm-server
   host:
-      connect-timeout-millis: 10000
-      socket-timeout-millis: 60000
+    connect-timeout-millis: 10000
+    socket-timeout-millis: 60000
+
+  threadPool:
+      useSeparateThreadPools: true
+
+hystrix :
+ command :
+   default:
+    execution:
+     isolation:
+      thread:
+      timeoutInMilliseconds: 5000
+
 

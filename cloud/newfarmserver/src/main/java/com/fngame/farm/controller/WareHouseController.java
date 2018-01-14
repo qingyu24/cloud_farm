@@ -17,14 +17,13 @@ import java.util.List;
 public class WareHouseController {
     @Autowired
     PlayerManager playerManager;
-    @Autowired
-    ResultInfo resultInfo;
+
 
 
     @RequestMapping("get")
     public ResultInfo getHouser(RequserOrder order, long userid) {
 
-        resultInfo = new ResultInfo();
+     ResultInfo resultInfo=new ResultInfo();
         resultInfo.setOrder(order);
         PlayerInfo player = playerManager.getPlayer(userid);
 
